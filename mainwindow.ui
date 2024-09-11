@@ -145,13 +145,17 @@
       <item>
        <widget class="QTabWidget" name="tabWidget">
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="issue_html_view_tab">
          <attribute name="title">
           <string>Tab 1</string>
          </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout"/>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <widget class="QWebEngineView" name="WebView" native="true"/>
+          </item>
+         </layout>
         </widget>
         <widget class="QWidget" name="issue_key_value_view_tab">
          <attribute name="title">
@@ -320,6 +324,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QWebEngineView</class>
+   <extends>QWidget</extends>
+   <header>qwebengineview.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
  <slots>
