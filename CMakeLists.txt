@@ -12,9 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineCore)
 find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineCore)
 
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON" CACHE BOOL "whether to export compile commands or not" )
-
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # using Clang
@@ -81,7 +79,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -Wuseless-cast
             -Wlogical-op
             -Wvector-operation-performance
-            -Wabi=11
+            #-Wabi=11
             -Wctor-dtor-privacy
             -Wnoexcept
             -Weffc++
