@@ -92,6 +92,27 @@ void MainWindow::jira_issue_activated(QListWidgetItem* selected, QListWidgetItem
     }
 }
 
+namespace {
+    bool is_issue_before(const std::string& a, const std::string& b) {
+        bool is_before;
+        const auto a_dash = std::find(a.cbegin(), a.cend(), '-');
+        const auto b_dash = std::find(b.cbegin(), b.cend(), '-');
+        if ((a_dash == a.cend()) || (b_dash == b.cend())
+            || (std::string(a.cbegin(), a_dash) != std::string(b.cbegin(), b_dash))) {
+            is_before = a < b;
+        } else {
+            try {
+                const auto num_a = std::stol(std::string(std::next(a_dash), a.cend()));
+                const auto num_b = std::stol(std::string(std::next(b_dash), b.cend()));
+                is_before = num_a < num_b;
+            } catch (...) {
+                is_before = a < b;
+            }
+        }
+        return is_before;
+    }
+}
+
 auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
     if (s == (issue_list_request + " FINISHED\n")) {
         issue_list_request.clear();
@@ -104,7 +125,9 @@ auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
         while (std::getline(ss, tmp, ',')) {
             issues.emplace_back(std::move(tmp));
         }
-        std::sort(issues.begin(), issues.end());
+
+        std::sort(issues.begin(), issues.end(), is_issue_before);
+
         ui->issues_list->clear();
         for (const auto& issue : issues) {
             ui->issues_list->addItem(QString::fromStdString(issue));
