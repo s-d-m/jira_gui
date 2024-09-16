@@ -30,6 +30,14 @@ MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
 
     ui->properties_widget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     QObject::connect(ui->issues_list, SIGNAL(currentItemChanged(QTreeWidgetItem*,QTreeWidgetItem*)), this, SLOT(jira_issue_activated(QTreeWidgetItem*,QTreeWidgetItem*)));
+    start_issue_list_request();
+    ui->main_view_widget->setCurrentIndex(0);
+}
+
+void MainWindow::start_issue_list_request() {
+    this->issue_list_request = std::string{"issue-ticket-list-"} + std::to_string(nr_request++);
+    const auto request = this->issue_list_request + " FETCH_TICKET_LIST\n";
+    server_handler.send_to_child(request);
 }
 
 void MainWindow::start_ticket_view_request(const std::string& issue_name) {

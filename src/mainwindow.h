@@ -34,6 +34,7 @@ private:
     void start_ticket_attachment_request(const std::string& issue_name);
     void start_ticket_properties_request(const std::string& issue_name);
     void start_ticket_view_request(const std::string& issue_name);
+    void start_issue_list_request();
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
