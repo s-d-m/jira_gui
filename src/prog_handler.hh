@@ -39,7 +39,9 @@ public:
             return std::unexpected(4);
         }
         const auto child_stdout = child->stdout_fd;
-        std::jthread background_thread (get_line_from_child, child_stdout, std::move(on_message_received_fn), std::move(on_error_fn));
+        std::jthread background_thread ([child_stdout = child_stdout, on_message_received_fn = std::move(on_message_received_fn), on_error_fn = std::move(on_error_fn)] (std::stop_token stop_token) {
+            ProgHandler::get_line_from_child(stop_token, child_stdout, std::move(on_message_received_fn), std::move(on_error_fn));
+        });
         return background_thread;
     }
 
