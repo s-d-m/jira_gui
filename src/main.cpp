@@ -6,18 +6,6 @@
 #include "mainwindow.h"
 #include "prog_handler.hh"
 
-static void dummy(std::stop_token stop_token, ProgHandler& server) {
-    int i = 0;
-
-    while (!stop_token.stop_requested()) {
-        ++i;
-        auto s = std::format("sending msg {}\n",  i);
-
-        server.send_to_child("asdhg FETCH_TICKET_KEY_VALUE_FIELDS CUPSIM-32\n");
-        sleep(4);
-    }
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -36,29 +24,26 @@ int main(int argc, char *argv[])
     auto& prog_handler_v = prog_handler.value();
 
     QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-        auto msg_sender_v = std::jthread(dummy, std::ref(prog_handler_v));
+    MainWindow w (prog_handler_v);
 
+    w.show();
     auto server_reader_thread = prog_handler_v.start_background_message_listener([&](std::string msg){
-            std::cout << "received message " << msg << "\n";
-            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::set_some_string, std::move(msg));
-            std::cout << "finished received message " << msg << "\n";
+            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::on_server_reply, std::move(msg));
         },
         [&](std::string msg) {
-            std::cout << "received error " << msg << "\n";
-            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::set_some_string, std::move(msg));
-            std::cout << "finished received error " << msg << "\n";
+            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::on_server_error, std::move(msg));
         });
 
     if (!server_reader_thread) {
-        std::cout << "Failed to start a beckground thread to get messages from the server\n";
+        std::cout << "Failed to start a background thread to get messages from the server\n";
         return 5;
     }
-//    auto& msg_sender_v = msg_sender.value();
+    auto& msg_sender_v = server_reader_thread.value();
 
     const auto ret = a.exec();
+
     msg_sender_v.request_stop();
+    prog_handler_v.send_to_child("exit-immediately EXIT_SERVER_NOW\n");
     msg_sender_v.join();
     return ret;
 }

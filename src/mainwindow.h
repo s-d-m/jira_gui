@@ -4,6 +4,7 @@
 #include "qtreewidget.h"
 #include <QMainWindow>
 #include "ui_mainwindow.h"
+#include "prog_handler.hh"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -16,7 +17,7 @@ class MainWindow final : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(ProgHandler& server_handler_, QWidget *parent = nullptr);
     MainWindow(const MainWindow&) = delete;
     MainWindow& operator=(const MainWindow&) = delete;
     ~MainWindow() override = default;
@@ -25,9 +26,21 @@ private slots:
     auto jira_issue_activated(QTreeWidgetItem* selected, QTreeWidgetItem* previous_value) -> void;
 
 public slots:
-    auto set_some_string(std::string s) -> void;
+    auto on_server_reply(std::string s) -> void;
+    auto on_server_error(std::string s) -> void;
+
+private:
+    void refresh_ticket(const std::string& issue_name);
+    void start_ticket_attachment_request(const std::string& issue_name);
+    void start_ticket_properties_request(const std::string& issue_name);
+    void start_ticket_view_request(const std::string& issue_name);
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
+    ProgHandler& server_handler;
+    std::string issue_list_request = {};
+    std::string ticket_view_request = {} ;
+    std::string ticket_properties_request = {};
+    std::string ticket_attachments_request = {};
 };
 #endif // MAINWINDOW_H
