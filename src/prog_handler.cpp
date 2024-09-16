@@ -39,7 +39,7 @@ auto ProgHandler::try_new(const char* const prog_exec) noexcept -> std::expected
     if (child_out_pipe_res != 0) {
         return std::unexpected(std::format("failed to create pipe for the output of the child. Error code is {}", child_out_pipe_res));
     }
-    const auto child_in_pipe_res = pipe2(&child_in[0], O_CLOEXEC | O_NONBLOCK);
+    const auto child_in_pipe_res = pipe2(&child_in[0], O_CLOEXEC);
     if (child_in_pipe_res != 0) {
         return std::unexpected(std::format("failed to create pipe for the input of the child. Error code is {}", child_in_pipe_res));
     }
@@ -108,11 +108,22 @@ auto ProgHandler::try_new(const char* const prog_exec) noexcept -> std::expected
         return std::unexpected(std::move(ret_err));
     }
 
+    const auto child_out_fd = child_out[0];
+    const auto init_child_out_fd_flags = fcntl(child_out_fd, F_GETFL);
+    // set nonblocking only for the cpp side, reading from the server
+    if (int retval = fcntl( child_out_fd, F_SETFL,  init_child_out_fd_flags | O_NONBLOCK);
+            retval != 0) {
+        std::cout << "Failed to set the cpp of the read pipe from server to NONBLOCKING\n";
+        auto ret_err = close_ressources_and_get_err("fcntl", retval);
+        return std::unexpected(ret_err);
+    }
+
     posix_spawn_file_actions_destroy(&file_actions);
     close(child_in[0]);
     close(child_out[1]);
 
-    auto res = ProgHandler(child_data_t{.pid = child_pid, .stdin_fd = child_in[1], .stdout_fd = child_out[0]});
+
+    auto res = ProgHandler(child_data_t{.pid = child_pid, .stdin_fd = child_in[1], .stdout_fd = child_out_fd});
     return res;
 }
 
