@@ -21,12 +21,18 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
             -Weverything
             -Werror
-            --analyze
+            # unfortunately, there is a warning triggered in Qt code
+#            --analyze
+#            -Xanalyzer -analyzer-output=html -o html-dir
             -Wno-c++98-compat
             -Wno-c++98-compat-pedantic
             -Wno-c99-extensions
+            -Wno-c++20-compat
             -Wno-padded
+            # Qt uses symbols starting with ___ which is reserved
+            -Wno-reserved-identifier
             -fsafe-buffer-usage-suggestions
+            -Wno-unsafe-buffer-usage
     )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # using GCC
@@ -223,7 +229,6 @@ endif()
 
 add_compile_options(
     -fno-common
-    -fbounds-check
     -fno-delete-null-pointer-checks
     -fstrict-aliasing
     -fstrict-overflow
@@ -232,38 +237,22 @@ add_compile_options(
     -fstack-protector-all
     -fno-omit-frame-pointer
 )
+#
+#add_compile_options(
+#        -fsanitize=address
+#)
+#link_libraries(asan)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(
-         -fsanitize=undefined
-         -fsanitize=address
-         -static-libasan
-         -static-libubsan
+        -fsanitize=undefined
+        -fbounds-check
+#        -static-libasan
+        -static-libubsan
     )
-
-    set(CMAKE_EXE_LINKER_FLAGS_INIT "-z noexecstack -z now -z relo -z nodlopen -z nodump -pie")
-#     add_link_options(
-#         -pie
-#         -z noexecstack
-#         -z now
-#         -z relro
-#         -z nodlopen
-#         -z nodump
-#     )
-    link_libraries(ubsan asan)
+    link_libraries(ubsan)
 endif()
 
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-z noexecstack -z now -z relo -z nodlopen -z nodump -pie")
 
-set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
-)
-
-add_executable(jira_gui ${PROJECT_SOURCES})
-
-target_link_libraries(jira_gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(jira_gui PRIVATE Qt${QT_VERSION_MAJOR}::WebEngineWidgets)
-target_link_libraries(jira_gui PRIVATE Qt${QT_VERSION_MAJOR}::WebEngineCore)
-
+add_subdirectory(src)

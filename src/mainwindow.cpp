@@ -46,3 +46,8 @@ void MainWindow::jira_issue_activated(QTreeWidgetItem* selected, QTreeWidgetItem
     ui->tableWidget->setSortingEnabled(true);
 
 }
+
+
+void MainWindow::set_some_string(std::string s) {
+    ui->WebView->setHtml(QString::fromStdString("<html><head></head><body><verbatim>" + s + "</verbatim></body><html>"));
+}

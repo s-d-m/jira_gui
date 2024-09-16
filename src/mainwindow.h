@@ -11,7 +11,7 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class MainWindow final : public QMainWindow
 {
     Q_OBJECT
 
@@ -19,10 +19,13 @@ public:
     MainWindow(QWidget *parent = nullptr);
     MainWindow(const MainWindow&) = delete;
     MainWindow& operator=(const MainWindow&) = delete;
-    ~MainWindow() = default;
+    ~MainWindow() override = default;
 
 private slots:
     auto jira_issue_activated(QTreeWidgetItem* selected, QTreeWidgetItem* previous_value) -> void;
+
+public slots:
+    auto set_some_string(std::string s) -> void;
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
