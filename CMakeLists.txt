@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineCore)
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineCore)
 find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineCore)
 
 
@@ -26,6 +26,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             -Wno-c++98-compat-pedantic
             -Wno-c99-extensions
             -Wno-padded
+            -fsafe-buffer-usage-suggestions
     )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # using GCC
@@ -228,22 +229,30 @@ add_compile_options(
     -fstrict-overflow
     -frecord-gcc-switches
     -fvisibility=hidden
-    # -fsanitize=undefined
-    # -fsanitize=address
     -fstack-protector-all
     -fno-omit-frame-pointer
-    # -static-libasan
-    # -static-libubsan
 )
 
-# add_link_options(
-#     -pie
-#     -z noexecstack
-#     -z now
-#     -z relro
-#     -z nodlopen
-#     -z nodump
-# )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+         -fsanitize=undefined
+         -fsanitize=address
+         -static-libasan
+         -static-libubsan
+    )
+
+    set(CMAKE_EXE_LINKER_FLAGS_INIT "-z noexecstack -z now -z relo -z nodlopen -z nodump -pie")
+#     add_link_options(
+#         -pie
+#         -z noexecstack
+#         -z now
+#         -z relro
+#         -z nodlopen
+#         -z nodump
+#     )
+    link_libraries(ubsan asan)
+endif()
+
 
 set(PROJECT_SOURCES
         main.cpp
