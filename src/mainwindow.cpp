@@ -1,6 +1,7 @@
 #include <iostream>
 #include <QAbstractItemView>
 #include <atomic>
+#include <algorithm>
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
@@ -19,6 +20,7 @@ MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
     , server_handler(server_handler_param)
 {
     ui->setupUi(this);
+    ui->issues_list->addItem(QString("Loading issues list"));
     ui->html_page_widget->setHtml(QString("<html><head></head><body><h1>Starting background server</h1></body></html>"));
     ui->main_view_widget->setTabText(0, QString("Loading tickets"));
     ui->main_view_widget->setTabText(1, QString("properties"));
@@ -29,7 +31,7 @@ MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
     ui->properties_widget->setSortingEnabled(true);
 
     ui->properties_widget->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    QObject::connect(ui->issues_list, SIGNAL(currentItemChanged(QTreeWidgetItem*,QTreeWidgetItem*)), this, SLOT(jira_issue_activated(QTreeWidgetItem*,QTreeWidgetItem*)));
+    QObject::connect(ui->issues_list, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)), this, SLOT(jira_issue_activated(QListWidgetItem*,QListWidgetItem*)));
     start_issue_list_request();
     ui->main_view_widget->setCurrentIndex(0);
 }
@@ -82,14 +84,76 @@ void MainWindow::refresh_ticket(const std::string& issue_name) {
     start_ticket_view_request(issue_name);
 }
 
-void MainWindow::jira_issue_activated(QTreeWidgetItem* selected, QTreeWidgetItem* previous_value __attribute__((unused)))
+void MainWindow::jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value __attribute__((unused)))
 {
-    const auto issue_name =  selected->text(0).toStdString();
-    refresh_ticket(issue_name);
+    if (selected) {
+        const auto issue_name = selected->text().toStdString();
+        refresh_ticket(issue_name);
+    }
+}
+
+auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
+    if (s == (issue_list_request + " FINISHED\n")) {
+        issue_list_request.clear();
+    } else if (s.starts_with(issue_list_request + " RESULT ") && s.ends_with("\n")) {
+        // + 8 for " RESULT ", -1 for "\n"
+        const auto tickets = std::string{s.c_str() + issue_list_request.size() + 8, s.c_str() + s.size() - 1};
+        std::istringstream ss {tickets};
+        std::vector<std::string> issues;
+        std::string tmp;
+        while (std::getline(ss, tmp, ',')) {
+            issues.emplace_back(std::move(tmp));
+        }
+        std::sort(issues.begin(), issues.end());
+        ui->issues_list->clear();
+        for (const auto& issue : issues) {
+            ui->issues_list->addItem(QString::fromStdString(issue));
+        }
+    } else if (s == (issue_list_request + " ACK\n")) {
+        // nothing special to do
+    }
+}
+
+auto MainWindow::handle_ticket_view_reply(const std::string& s) -> void {
+    if (s == (ticket_view_request + " FINISHED\n")) {
+        ticket_view_request.clear();
+    } else if (s == (ticket_view_request + " RESULT ")) {
+        // interesting data here
+    } else if (s == (ticket_view_request + " ACK\n")) {
+        // nothing special to do
+    }
+}
+
+auto MainWindow::handle_ticket_properties_reply(const std::string& s) -> void {
+    if (s == (ticket_properties_request + " FINISHED\n")) {
+        ticket_properties_request.clear();
+    } else if (s == (ticket_properties_request + " RESULT ")) {
+        // interesting data here
+    } else if (s == (ticket_properties_request + " ACK\n")) {
+        // nothing special to do
+    }
+}
+
+auto MainWindow::handle_ticket_attachment_reply(const std::string& s) -> void {
+    if (s == (ticket_attachments_request + " FINISHED\n")) {
+        ticket_attachments_request.clear();
+    } else if (s == (ticket_attachments_request + " RESULT ")) {
+        // interesting data here
+    } else if (s == (ticket_attachments_request + " ACK\n")) {
+        // nothing special to do
+    }
 }
 
 auto MainWindow::on_server_reply(std::string s) -> void {
-    ui->html_page_widget->setHtml(QString::fromStdString("<html><head></head><body><verbatim>" + s + "</verbatim></body><html>"));
+    if (s.starts_with(issue_list_request + " ")) {
+        handle_issue_list_reply(s);
+    } else if (s.starts_with(ticket_view_request + " ")) {
+        handle_ticket_view_reply(s);
+    } else if (s.starts_with(ticket_properties_request + " ")) {
+        handle_ticket_properties_reply(s);
+    } else if (s.starts_with(ticket_attachments_request + " ")) {
+        handle_ticket_attachment_reply(s);
+    }
 }
 
 auto MainWindow::on_server_error(std::string s) -> void {

@@ -23,7 +23,7 @@ public:
     ~MainWindow() override = default;
 
 private slots:
-    auto jira_issue_activated(QTreeWidgetItem* selected, QTreeWidgetItem* previous_value) -> void;
+    auto jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value) -> void;
 
 public slots:
     auto on_server_reply(std::string s) -> void;
@@ -35,6 +35,11 @@ private:
     void start_ticket_properties_request(const std::string& issue_name);
     void start_ticket_view_request(const std::string& issue_name);
     void start_issue_list_request();
+
+    auto handle_issue_list_reply(const std::string& s) -> void;
+    auto handle_ticket_view_reply(const std::string& s) -> void;
+    auto handle_ticket_properties_reply(const std::string& s) -> void;
+    auto handle_ticket_attachment_reply(const std::string& s) -> void;
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
