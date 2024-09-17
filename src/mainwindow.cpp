@@ -21,8 +21,8 @@ MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
     , server_handler(server_handler_param)
 {
     ui->setupUi(this);
-//    ui->issues_list->addItem(QString("Loading issues list"));
-    ui->html_page_widget->setHtml(QString("<html><head></head><body><h1>Starting background server</h1></body></html>"));
+    ui->issues_list->addItem(QString("Loading issues list"));
+    ui->html_page_widget->setContent(QByteArray("<html><head></head><body><h1>Starting background server</h1></body></html>"), "text/html;charset=UTF-8");
     ui->main_view_widget->setTabText(0, QString("Loading tickets"));
     ui->main_view_widget->setTabText(1, QString("properties"));
     ui->main_view_widget->setTabText(2, QString("attachments"));
@@ -44,9 +44,8 @@ void MainWindow::start_issue_list_request() {
 }
 
 void MainWindow::start_ticket_view_request(const std::string& issue_name) {
-    const auto* issue_name_as_c_str = issue_name.c_str();
-
-    ui->html_page_widget->setHtml(QString("<html><head></head><body><h1>Loading data for issue ").append(issue_name_as_c_str).append("</h1></body></html>"));
+    const auto html = "<html><head></head><body><h1>Loading data for issue " + issue_name + "</h1></body></html>";
+    ui->html_page_widget->setContent(html.c_str(), "text/html;charset=UTF-8");
 
     this->ticket_view_request = issue_name + "-fetch-html-" + std::to_string(nr_request++);
     const auto fetch_html_request = this->ticket_view_request + " FETCH_TICKET " + issue_name + ",HTML\n";
@@ -87,6 +86,13 @@ void MainWindow::refresh_ticket(const std::string& issue_name) {
 
 void MainWindow::jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value __attribute__((unused)))
 {
+    if (!first_ticket_loaded) {
+        // we get here at startup when setting the field to "Loading list of tickets".
+        // This isn't a real jira issue.
+        // Better approach would be to find a way to set the field without automatically selecting it
+        return;
+    }
+
     if (selected) {
         const auto issue_name = selected->text().toStdString();
         refresh_ticket(issue_name);
@@ -113,6 +119,12 @@ auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
         for (const auto& issue : issues) {
             ui->issues_list->addItem(QString::fromStdString(issue));
         }
+
+        if ((!first_ticket_loaded) && (!issues.empty())) {
+            const auto& first_ticket = issues.front();
+            refresh_ticket(first_ticket);
+            first_ticket_loaded = true;
+        }
     } else if (s == (issue_list_request + " ACK\n")) {
         // nothing special to do
     }
@@ -126,8 +138,8 @@ auto MainWindow::handle_ticket_view_reply(const std::string& s) -> void {
         const auto base64_view = std::string_view(s.c_str() + ticket_view_request.size() + 8, s.c_str() + s.size() - 1);
         try {
             const auto decoded = based64_decode(base64_view);
-            std::cout << std::string(decoded.cbegin(), decoded.cend()) << "\n";
-            ui->html_page_widget->setHtml(QString::fromLocal8Bit(decoded));
+            ui->html_page_widget->setContent(QByteArray::fromRawData(reinterpret_cast<const char *>(decoded.data()),
+                                                                     static_cast<qsizetype>(decoded.size())), "text/html;charset=UTF-8");
         } catch (const std::exception& e) {
             ui->html_page_widget->setHtml(QString("Failed to decode ").append(s.c_str()).append(" error is ").append(e.what()));
         } catch (...) {
@@ -143,7 +155,58 @@ auto MainWindow::handle_ticket_properties_reply(const std::string& s) -> void {
     if (s == (ticket_properties_request + " FINISHED\n")) {
         ticket_properties_request.clear();
     } else if (s.starts_with(ticket_properties_request + " RESULT ")) {
-        // interesting data here
+        // + 8 for " RESULT ", -1 for "\n"
+        const auto result_data = std::string{s.c_str() + ticket_properties_request.size() + 8, s.c_str() + s.size() - 1};
+        std::istringstream ss {result_data};
+        std::vector<std::string> props;
+        std::string tmp;
+        while (std::getline(ss, tmp, ',')) {
+            props.emplace_back(std::move(tmp));
+        }
+
+        struct kv_prop {
+            std::string key;
+            std::string value;
+            kv_prop(std::string k, std::string v) noexcept : key(std::move(k)), value(std::move(v)) {}
+        };
+
+        std::vector<kv_prop> table_data;
+        for (const auto& kv : props) {
+            const auto colon_pos = std::find(kv.cbegin(), kv.cend(), ':');
+            if (colon_pos == kv.cend()) {
+                std::cout << std::format("Error: invalid encoded data found. Expected a key value pair, encoded in base 64 and separated by a colon. Got {}", kv);
+            } else {
+                const auto encoded_key = std::string(kv.cbegin(), colon_pos);
+                const auto encoded_value = std::string(std::next(colon_pos), kv.cend());
+                try {
+                    const auto decoded_key_raw = based64_decode(std::string_view{encoded_key});
+                    const auto decoded_value_raw = based64_decode(std::string_view{encoded_value});
+                    auto decoded_key = std::string(decoded_key_raw.cbegin(), decoded_key_raw.cend());
+                    auto decoded_value = std::string(decoded_value_raw.cbegin(), decoded_value_raw.cend());
+                    table_data.emplace_back(std::move(decoded_key), std::move(decoded_value));
+                } catch (...) {
+                    std::cout << std::format("Error with encoded key/value. Key={} Value={}\n", encoded_key, encoded_value);
+                    table_data.emplace_back(std::format("Error with encoded key/value. Key={}", encoded_key),
+                                            std::format("Error with encoded key/value. value={}", encoded_value));
+                }
+            }
+        }
+
+        std::sort(table_data.begin(), table_data.end(), [](const auto& a, const auto& b){
+            return a.key < b.key;
+        });
+
+        auto& properties_widget = *ui->properties_widget;
+        properties_widget.clearContents();
+        const auto nr_rows = table_data.size();
+        properties_widget.setRowCount(static_cast<int>(nr_rows));
+
+        for (size_t i = 0; i < nr_rows; ++i) {
+            const auto& elt = table_data[i];
+            properties_widget.setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(elt.key)));
+            properties_widget.setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(elt.value)));
+        }
+
     } else if (s == (ticket_properties_request + " ACK\n")) {
         // nothing special to do
     }

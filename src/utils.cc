@@ -48,8 +48,6 @@ namespace {
 
 #include <iostream>
 auto based64_decode(const std::string_view& input) -> std::vector<std::uint8_t> {
-    std::cout << "Decoding received " << input << "\n";
-
     std::vector<std::uint8_t> res;
     const auto nr_chars = input.size();
     if (nr_chars == 0) {

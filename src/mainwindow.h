@@ -48,5 +48,6 @@ private:
     std::string ticket_view_request = {} ;
     std::string ticket_properties_request = {};
     std::string ticket_attachments_request = {};
+    bool first_ticket_loaded = false;
 };
 #endif // MAINWINDOW_H
