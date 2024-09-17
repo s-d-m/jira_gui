@@ -24,6 +24,7 @@ public:
 
 private slots:
     auto jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value) -> void;
+    auto download_file_activated(QListWidgetItem* selected) -> void;
 
 public slots:
     auto on_server_reply(std::string s) -> void;
@@ -48,6 +49,7 @@ private:
     std::string ticket_view_request = {} ;
     std::string ticket_properties_request = {};
     std::string ticket_attachments_request = {};
+    size_t nr_attachment_for_ticket = 0;
     bool first_ticket_loaded = false;
 };
 #endif // MAINWINDOW_H
