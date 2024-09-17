@@ -3,6 +3,7 @@
 #include <atomic>
 #include <algorithm>
 #include "mainwindow.h"
+#include "utils.hh"
 #include "./ui_mainwindow.h"
 
 namespace {
@@ -20,7 +21,7 @@ MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
     , server_handler(server_handler_param)
 {
     ui->setupUi(this);
-    ui->issues_list->addItem(QString("Loading issues list"));
+//    ui->issues_list->addItem(QString("Loading issues list"));
     ui->html_page_widget->setHtml(QString("<html><head></head><body><h1>Starting background server</h1></body></html>"));
     ui->main_view_widget->setTabText(0, QString("Loading tickets"));
     ui->main_view_widget->setTabText(1, QString("properties"));
@@ -92,26 +93,6 @@ void MainWindow::jira_issue_activated(QListWidgetItem* selected, QListWidgetItem
     }
 }
 
-namespace {
-    bool is_issue_before(const std::string& a, const std::string& b) {
-        bool is_before;
-        const auto a_dash = std::find(a.cbegin(), a.cend(), '-');
-        const auto b_dash = std::find(b.cbegin(), b.cend(), '-');
-        if ((a_dash == a.cend()) || (b_dash == b.cend())
-            || (std::string(a.cbegin(), a_dash) != std::string(b.cbegin(), b_dash))) {
-            is_before = a < b;
-        } else {
-            try {
-                const auto num_a = std::stol(std::string(std::next(a_dash), a.cend()));
-                const auto num_b = std::stol(std::string(std::next(b_dash), b.cend()));
-                is_before = num_a < num_b;
-            } catch (...) {
-                is_before = a < b;
-            }
-        }
-        return is_before;
-    }
-}
 
 auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
     if (s == (issue_list_request + " FINISHED\n")) {
@@ -140,8 +121,19 @@ auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
 auto MainWindow::handle_ticket_view_reply(const std::string& s) -> void {
     if (s == (ticket_view_request + " FINISHED\n")) {
         ticket_view_request.clear();
-    } else if (s == (ticket_view_request + " RESULT ")) {
-        // interesting data here
+    } else if (s.starts_with(ticket_view_request + " RESULT ")) {
+        // + 8 for RESULT., - 1 to remove the \n
+        const auto base64_view = std::string_view(s.c_str() + ticket_view_request.size() + 8, s.c_str() + s.size() - 1);
+        try {
+            const auto decoded = based64_decode(base64_view);
+            std::cout << std::string(decoded.cbegin(), decoded.cend()) << "\n";
+            ui->html_page_widget->setHtml(QString::fromLocal8Bit(decoded));
+        } catch (const std::exception& e) {
+            ui->html_page_widget->setHtml(QString("Failed to decode ").append(s.c_str()).append(" error is ").append(e.what()));
+        } catch (...) {
+            ui->html_page_widget->setHtml(QString("Failed to decode ").append(s.c_str()));
+        }
+
     } else if (s == (ticket_view_request + " ACK\n")) {
         // nothing special to do
     }
@@ -150,7 +142,7 @@ auto MainWindow::handle_ticket_view_reply(const std::string& s) -> void {
 auto MainWindow::handle_ticket_properties_reply(const std::string& s) -> void {
     if (s == (ticket_properties_request + " FINISHED\n")) {
         ticket_properties_request.clear();
-    } else if (s == (ticket_properties_request + " RESULT ")) {
+    } else if (s.starts_with(ticket_properties_request + " RESULT ")) {
         // interesting data here
     } else if (s == (ticket_properties_request + " ACK\n")) {
         // nothing special to do
@@ -160,7 +152,7 @@ auto MainWindow::handle_ticket_properties_reply(const std::string& s) -> void {
 auto MainWindow::handle_ticket_attachment_reply(const std::string& s) -> void {
     if (s == (ticket_attachments_request + " FINISHED\n")) {
         ticket_attachments_request.clear();
-    } else if (s == (ticket_attachments_request + " RESULT ")) {
+    } else if (s.starts_with(ticket_attachments_request + " RESULT ")) {
         // interesting data here
     } else if (s == (ticket_attachments_request + " ACK\n")) {
         // nothing special to do
