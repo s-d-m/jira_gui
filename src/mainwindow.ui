@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>773</width>
-    <height>393</height>
+    <width>1037</width>
+    <height>574</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -32,20 +32,27 @@
       <item>
        <widget class="QListWidget" name="issues_list">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
+         <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="maximumSize">
+        <property name="minimumSize">
          <size>
           <width>150</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
           <height>16777215</height>
          </size>
         </property>
         <property name="font">
          <font>
           <family>Terminus</family>
+          <pointsize>12</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -77,6 +84,12 @@
       </item>
       <item>
        <widget class="QTabWidget" name="main_view_widget">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="currentIndex">
          <number>2</number>
         </property>
@@ -191,6 +204,12 @@
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
            <widget class="QListWidget" name="attachments_widget">
+            <property name="contextMenuPolicy">
+             <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+            </property>
+            <property name="acceptDrops">
+             <bool>true</bool>
+            </property>
             <item>
              <property name="text">
               <string>file1</string>
@@ -221,7 +240,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>773</width>
+     <width>1037</width>
      <height>19</height>
     </rect>
    </property>
