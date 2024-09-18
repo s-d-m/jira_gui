@@ -319,8 +319,17 @@ auto MainWindow::handle_ticket_attachment_reply(const std::string& s) -> void {
             ui->attachments_widget->addItem(new AttachmentItem(std::move(uuid_fname.uuid), std::move(uuid_fname.filename)));
         }
         nr_attachment_for_ticket = table_data.size();
+    } else if (s.starts_with(ticket_attachments_request + " RESULT\n")) {
+        if (nr_attachment_for_ticket == 0) {
+            ui->attachments_widget->setEnabled(false);
+            ui->attachments_widget->clear();
+            ui->attachments_widget->addItem(QString("This ticket has no attachment in the local database. Let's see if some were attached remotely"));
+        }
     } else if (s == (ticket_attachments_request + " ACK\n")) {
-        // nothing special to do
+            // nothing special to do
+    }
+}
+
     }
 }
 
