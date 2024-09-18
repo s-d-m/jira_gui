@@ -2,10 +2,14 @@
 #include <QAbstractItemView>
 #include <atomic>
 #include <algorithm>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <fstream>
+
 #include "mainwindow.h"
 #include "utils.hh"
 #include "./ui_mainwindow.h"
-#include <QFileDialog>
+
 
 namespace {
     // global variable on purpose. Used to get a unique id for requests
@@ -67,10 +71,10 @@ namespace {
     };
 }
 
-MainWindow::MainWindow(ProgHandler& server_handler_param, QWidget *parent)
+MainWindow::MainWindow(ProgHandler& server_handle, QWidget *parent)
     : QMainWindow(parent)
     , ui(std::make_unique<Ui::MainWindow>())
-    , server_handler(server_handler_param)
+    , server_handler(server_handle)
 {
     ui->setupUi(this);
     ui->issues_list->addItem(QString("Loading issues list"));
@@ -98,11 +102,13 @@ auto MainWindow::download_file_activated(QListWidgetItem* selected) -> void {
         const auto save_path = QFileDialog::getSaveFileName(this, QString("Where to save file?"),
                                                             QString::fromStdString(fname));
         if (!save_path.isEmpty()) {
-            std::cout << "Let's save " << fname << " to " << save_path.toStdString() << "\n";
+            const auto& uuid = item->uuid;
+            const auto request = std::format("dl-for-{}-{}", uuid, nr_request++);
+            files_to_download.emplace_back(save_path.toStdString(), request);
+            server_handler.send_to_child(std::format("{} FETCH_ATTACHMENT_CONTENT {}\n", request, uuid));
         }
     }
 }
-
 
 void MainWindow::start_issue_list_request() {
     this->issue_list_request = std::string{"issue-ticket-list-"} + std::to_string(nr_request++);
@@ -330,10 +336,51 @@ auto MainWindow::handle_ticket_attachment_reply(const std::string& s) -> void {
     }
 }
 
+auto MainWindow::handle_download_msg_reply(const std::string& msg, std::vector<MainWindow::fname_req>::iterator file_to_dl) -> void {
+    const auto &req = file_to_dl->request;
+    if (msg.starts_with(std::format("{} RESULT ", req))) {
+        // 8 for " RESULT ", -1 for '\n'
+        const auto result_data = std::string_view(msg.c_str() + req.size() + 8, msg.c_str() + msg.size() - 1);
+        try {
+            const auto decoded = base64_decode(result_data);
+            std::ofstream out_file(file_to_dl->filename, std::ios::out | std::ios::trunc | std::ios::binary);
+            out_file.write(reinterpret_cast<const char *>(decoded.data()), static_cast<long>(decoded.size()));
+            out_file.close();
+        } catch (const std::exception &e) {
+            do_on_server_error(std::format("failed to save file {}. Err={}", file_to_dl->filename, e.what()));
+        } catch (...) {
+            do_on_server_error(
+                    std::format("failed to run base64 decode on data for file {}", file_to_dl->filename));
+        }
+    } else if (msg.starts_with(std::format("{} RESULT\n", req))) {
+        // empty file
+        std::ofstream out_file(file_to_dl->filename, std::ios::out | std::ios::trunc | std::ios::binary);
+        out_file.close();
+    } else if (msg.starts_with(std::format("{} ERROR ", req))) {
+        const auto result_data = std::string_view(msg.c_str() + req.size() + 7, msg.c_str() + msg.size() - 1);
+        do_on_server_error(std::format("Error when dl file {}: {}", file_to_dl->filename, result_data));
+    } else if (msg.starts_with(std::format("{} FINISHED", req))) {
+        std::swap(*std::prev(files_to_download.end()), *file_to_dl);
+        files_to_download.erase(std::prev(files_to_download.end()), files_to_download.end());
     }
+
 }
 
-auto MainWindow::on_server_reply(std::string s) -> void {
+auto MainWindow::find_elt_to_dl_for_msg(const std::string& msg) -> std::vector<MainWindow::fname_req>::iterator {
+    auto file_to_dl = std::find_if(files_to_download.begin(), files_to_download.end(), [&](const auto &item) {
+        if (!msg.starts_with(item.request)) {
+            return false;
+        }
+        // check again with a space to ensure no "prefix" issue
+        const auto req_with_space = std::format("{} ", item.request);
+        const auto res = msg.starts_with(req_with_space);
+        return res;
+    });
+    return file_to_dl;
+}
+
+
+auto MainWindow::do_on_server_reply(std::string s) -> void {
     if (s.starts_with(issue_list_request + " ")) {
         handle_issue_list_reply(s);
     } else if (s.starts_with(ticket_view_request + " ")) {
@@ -342,12 +389,15 @@ auto MainWindow::on_server_reply(std::string s) -> void {
         handle_ticket_properties_reply(s);
     } else if (s.starts_with(ticket_attachments_request + " ")) {
         handle_ticket_attachment_reply(s);
+    } else if (auto it = find_elt_to_dl_for_msg(s);
+               it != files_to_download.end()) {
+        handle_download_msg_reply(s, it);
     }
 }
 
-auto MainWindow::on_server_error(std::string s) -> void {
+auto MainWindow::do_on_server_error(std::string s) -> void {
     // todo, display a nice error window, propose to restart the background server instead of the app ...
     // or automatically restart the background server and only notify the user if it crashes more than
     // X times in Y seconds.
-    ui->html_page_widget->setHtml(QString::fromStdString("<html><head></head><body><verbatim>Error occurred on the server:" + s + "</verbatim>Try to restart the app to see if it works again</body><html>"));
+    QMessageBox::warning(this, QString("Error from server"), QString::fromStdString(s));
 }

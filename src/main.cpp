@@ -28,10 +28,10 @@ int main(int argc, char *argv[])
 
     w.show();
     auto server_reader_thread = prog_handler_v.start_background_message_listener([&](std::string msg){
-            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::on_server_reply, std::move(msg));
+            QMetaObject::invokeMethod(&w, &MainWindow::do_on_server_reply, std::move(msg));
         },
         [&](std::string msg) {
-            QMetaObject::invokeMethod(&w, /* Qt::QueuedConnection, */ &MainWindow::on_server_error, std::move(msg));
+            QMetaObject::invokeMethod(&w, &MainWindow::do_on_server_error, std::move(msg));
         });
 
     if (!server_reader_thread) {

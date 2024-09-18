@@ -17,7 +17,7 @@ class MainWindow final : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(ProgHandler& server_handler_, QWidget *parent = nullptr);
+    MainWindow(ProgHandler& server_handler, QWidget *parent = nullptr);
     MainWindow(const MainWindow&) = delete;
     MainWindow& operator=(const MainWindow&) = delete;
     ~MainWindow() override = default;
@@ -27,8 +27,21 @@ private slots:
     auto download_file_activated(QListWidgetItem* selected) -> void;
 
 public slots:
-    auto on_server_reply(std::string s) -> void;
-    auto on_server_error(std::string s) -> void;
+    // don't call these on_* otherwise Qt tries to do some automatic
+    // connect signal to slot and warns about non-existing signals
+    // for these slots
+    auto do_on_server_reply(std::string s) -> void;
+    auto do_on_server_error(std::string s) -> void;
+
+private:
+    struct fname_req {
+        fname_req(std::string f, std::string r) noexcept
+                : filename(std::move(f))
+                , request(std::move(r))
+        {}
+        std::string filename;
+        std::string request;
+    };
 
 private:
     void refresh_ticket(const std::string& issue_name);
@@ -41,6 +54,10 @@ private:
     auto handle_ticket_view_reply(const std::string& s) -> void;
     auto handle_ticket_properties_reply(const std::string& s) -> void;
     auto handle_ticket_attachment_reply(const std::string& s) -> void;
+    auto handle_download_msg_reply(const std::string& msg, std::vector<fname_req>::iterator file_to_dl) -> void;
+
+    auto find_elt_to_dl_for_msg(const std::string& msg) -> std::vector<MainWindow::fname_req>::iterator;
+
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
@@ -51,5 +68,6 @@ private:
     std::string ticket_attachments_request = {};
     size_t nr_attachment_for_ticket = 0;
     bool first_ticket_loaded = false;
+    std::vector<fname_req> files_to_download = {};
 };
 #endif // MAINWINDOW_H
