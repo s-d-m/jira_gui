@@ -5,4 +5,4 @@
 #include <vector>
 
 bool is_issue_before(const std::string& a, const std::string& b);
-auto based64_decode(const std::string_view& input) -> std::vector<std::uint8_t>;
+auto base64_decode(const std::string_view& input) -> std::vector<std::uint8_t>;

@@ -206,7 +206,7 @@ auto MainWindow::handle_ticket_view_reply(const std::string& s) -> void {
         // + 8 for RESULT., - 1 to remove the \n
         const auto base64_view = std::string_view(s.c_str() + ticket_view_request.size() + 8, s.c_str() + s.size() - 1);
         try {
-            const auto decoded = based64_decode(base64_view);
+            const auto decoded = base64_decode(base64_view);
             ui->html_page_widget->setContent(QByteArray::fromRawData(reinterpret_cast<const char *>(decoded.data()),
                                                                      static_cast<qsizetype>(decoded.size())), "text/html;charset=UTF-8");
         } catch (const std::exception& e) {
@@ -239,8 +239,8 @@ auto MainWindow::handle_ticket_properties_reply(const std::string& s) -> void {
             const auto& encoded_key = kv.key;
             const auto& encoded_value = kv.value;
             try {
-                const auto decoded_key_raw = based64_decode(std::string_view{encoded_key});
-                const auto decoded_value_raw = based64_decode(std::string_view{encoded_value});
+                const auto decoded_key_raw = base64_decode(std::string_view{encoded_key});
+                const auto decoded_value_raw = base64_decode(std::string_view{encoded_value});
                 auto decoded_key = std::string(decoded_key_raw.cbegin(), decoded_key_raw.cend());
                 auto decoded_value = std::string(decoded_value_raw.cbegin(), decoded_value_raw.cend());
                 table_data.emplace_back(std::move(decoded_key), std::move(decoded_value));
@@ -299,7 +299,7 @@ auto MainWindow::handle_ticket_attachment_reply(const std::string& s) -> void {
             auto& uuid = uf.key;
             const auto& encoded_filename = uf.value;
             try {
-                const auto decoded_fname_raw = based64_decode(std::string_view{encoded_filename});
+                const auto decoded_fname_raw = base64_decode(std::string_view{encoded_filename});
                 auto decoded_fname = std::string(decoded_fname_raw.cbegin(), decoded_fname_raw.cend());
                 table_data.emplace_back(std::move(uuid), std::move(decoded_fname));
             } catch (...) {
