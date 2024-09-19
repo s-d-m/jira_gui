@@ -17,6 +17,10 @@ int main(int argc, char *argv[])
         return 3;
     }
 
+    if (!set_sigpipe_signal_handler()) {
+        return 4;
+    };
+
     auto prog_handler = ProgHandler::try_new(exec_path.value());
     if (!prog_handler) {
         std::cout << "Error: failed to start the background server\n";
