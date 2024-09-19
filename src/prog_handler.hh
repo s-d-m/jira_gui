@@ -11,6 +11,7 @@
 #include <array>
 #include <spawn.h>
 #include <format>
+#include <chrono>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -45,6 +46,8 @@ public:
         return background_thread;
     }
 
+    // Wait for the child to die. If he is still alive after timeout, kill it
+    void kill_child_after_timeout(const std::chrono::milliseconds timeout) noexcept;
     void kill_child() noexcept;
 
 private:

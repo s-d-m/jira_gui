@@ -109,19 +109,10 @@ auto ProgHandler::try_new(const char* const prog_exec) noexcept -> std::expected
     }
 
     const auto child_out_fd = child_out[0];
-    const auto init_child_out_fd_flags = fcntl(child_out_fd, F_GETFL);
-    // set nonblocking only for the cpp side, reading from the server
-    if (int retval = fcntl( child_out_fd, F_SETFL,  init_child_out_fd_flags | O_NONBLOCK);
-            retval != 0) {
-        std::cout << "Failed to set the cpp of the read pipe from server to NONBLOCKING\n";
-        auto ret_err = close_ressources_and_get_err("fcntl", retval);
-        return std::unexpected(ret_err);
-    }
 
     posix_spawn_file_actions_destroy(&file_actions);
     close(child_in[0]);
     close(child_out[1]);
-
 
     auto res = ProgHandler(child_data_t{.pid = child_pid, .stdin_fd = child_in[1], .stdout_fd = child_out_fd});
     return res;
@@ -184,6 +175,36 @@ auto ProgHandler::send_to_child(const std::string& msg, std::chrono::millisecond
     return true;
 }
 
+namespace {
+    bool is_process_alive(const int pid) {
+        int status;
+        const auto ret_code = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+        const auto is_alive = ret_code >= 0;
+        return is_alive;
+    }
+}
+
+void ProgHandler::kill_child_after_timeout(const std::chrono::milliseconds timeout) noexcept {
+    if (child.has_value()) {
+        const auto pid = child.value().pid;
+        const auto max_wait_between_checks = std::chrono::milliseconds{5};
+        auto waited_time = std::chrono::milliseconds {0};
+
+        while ((is_process_alive(pid)) && (waited_time < timeout)) {
+            const auto max_time_to_wait = timeout - waited_time;
+            const auto time_to_wait = std::min(max_wait_between_checks, max_time_to_wait);
+            std::this_thread::sleep_for(time_to_wait);
+            waited_time += time_to_wait;
+        }
+        if (is_process_alive(pid)) {
+            kill_child();
+        } else {
+            close(child->stdin_fd);
+            close(child->stdout_fd);
+            child = std::nullopt;
+        }
+    }
+}
 
 void ProgHandler::kill_child() noexcept {
     if (child.has_value()) {
@@ -209,6 +230,8 @@ void ProgHandler::kill_child() noexcept {
 //                    }
 //                }
         }
+        close(child->stdin_fd);
+        close(child->stdout_fd);
         child = std::nullopt;
     }
 }

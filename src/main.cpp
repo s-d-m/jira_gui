@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 
     msg_sender_v.request_stop();
     prog_handler_v.send_to_child("exit-immediately EXIT_SERVER_NOW\n");
+    prog_handler_v.kill_child_after_timeout(std::chrono::milliseconds{500});
     msg_sender_v.join();
 
     // there is a race-condition here at exit time. The window has a
