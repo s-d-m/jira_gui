@@ -83,8 +83,11 @@ private:
                 auto *data_ptr = storage.data() + nr_bytes_used_in_storage;
                 auto read_ret = read(child_stdout_fd, data_ptr, nr_bytes_left_in_storage());
                 if (read_ret == -1) {
-                    if ((errno == EINTR) || (errno == EAGAIN)) {
+                    if (errno == EINTR) {
                         // nothing special to do. Just try again
+                    } else if (errno == EAGAIN) {
+                        // sleep to avoid busy looping
+                        std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     } else if (errno == EWOULDBLOCK) {
                         // check for cancel requested
                         // Shouldn't get here since we don't create the pipe with O_NONBLOCK
