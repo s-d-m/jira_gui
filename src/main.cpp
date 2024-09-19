@@ -45,5 +45,48 @@ int main(int argc, char *argv[])
     msg_sender_v.request_stop();
     prog_handler_v.send_to_child("exit-immediately EXIT_SERVER_NOW\n");
     msg_sender_v.join();
+
+    // there is a race-condition here at exit time. The window has a
+    // reference to the prog_handler, and uses its send_to_child method to
+    // send request to the server. The prog_handler has references to the window
+    // and uses it to send messages coming form the server. When we reach the
+    // step of object destruction, one will be destroyed before the other and
+    // therefore, one of the object will hold for a very brief period of time
+    // references to the other object. This mean there is a brief period of time
+    // where a use-after-free is technically possible.
+    // This isn't a concern here, because the reference can't be used during that
+    // time window.
+    //
+    // The window was declared after the prog handler, hence it is is the prog_handler
+    // that outlives the window. In the prog handler, the references are used only
+    // when receiving a message from the server in the background thread, in order to
+    // call do_on_server_reply or do_on_server_error through the InvokeMethod.
+    // When reaching this point, the background thread already exited since we
+    // sent a stop request and then joined the thread. Hence from here on, that
+    // reference won't be used anymore, and the window destructor hasn't been called
+    // yet.
+    //
+    // If it where the window that would be declared first, thus outlive the
+    // prog_handler, and hold invalid references, it would also not be an issue.
+    // The window only uses the prog handler to send request to the server, and
+    // those requests are only done either at initialisation to show the list of
+    // tickets and to display the first ticket, or upon a user action. At this
+    // point in the program, the window exited and thus a user can't trigger
+    // calls to the prog_handler anymore. And the prog_handler isn't destructed
+    // yet. Thus the reference isn't used when invalid.
+    //
+    // On top of that, where there to be a use after free here, the only
+    // consequence would be that the program would close due to a crash. The program
+    // was already closing anyway at this point. Only user-visible difference would
+    // be the program's return code.
+    //
+    // A better design would be to avoid having references becoming invalid in the
+    // first place. Here we have a circular dependency since the prog_handler and
+    // the window need to know about each other. To break this, a better design would
+    // be to let make communication through a message channel that outlives both of
+    // them. Some signaling through condition variables would be needed to avoid
+    // polling for messages. Bonus point, moving some work currently done in the UI
+    // thread, such as base64 decoding, sorting data, saving files, ... could then
+    // easily be moved out into a worker thread, thus improving user interactivity.
     return ret;
 }
