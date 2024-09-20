@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
 
     auto prog_handler = ProgHandler::try_new(exec_path.value());
     if (!prog_handler) {
-        std::cout << "Error: failed to start the background server\n";
+        std::cout << std::format("Error: failed to start the background server. Error is: {}\n", prog_handler.error());
+        return 5;
     }
     auto& prog_handler_v = prog_handler.value();
 

@@ -63,7 +63,8 @@ auto ProgHandler::try_new(const char* const prog_exec) noexcept -> std::expected
 
     const auto close_ressources_and_get_err = [&](const char* fn_name, int ret_code) {
         posix_spawn_file_actions_destroy(&file_actions);
-        return close_fds_and_get_err(fn_name, ret_code);
+        auto ret_msg = close_fds_and_get_err(fn_name, ret_code);
+        return std::unexpected(std::move(ret_msg));
     };
 
 
