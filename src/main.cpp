@@ -5,16 +5,24 @@
 
 #include "mainwindow.h"
 #include "prog_handler.hh"
-
+#include "temp_file_handler.hh"
 
 int main(int argc, char *argv[])
 {
     std::optional<const char*> exec_path;
+    MyTempFile embedded_server_handler;
+    bool using_embedded_server;
     if (argc >= 2) {
+        using_embedded_server = false;
         exec_path = argv[1];
     } else {
-        std::cout << "Error: need to pass a path to the background server as input\n";
-        return 3;
+        if (!embedded_server_handler.initialise()) {
+            std::cout << "Error: failed to create the temprorary file to hold the local server\n";
+            return 6;
+        }
+        exec_path = embedded_server_handler.get_exec_path();
+        assert(exec_path != nullptr);
+        using_embedded_server = true;
     }
 
     if (!set_sigpipe_signal_handler()) {
@@ -22,6 +30,9 @@ int main(int argc, char *argv[])
     };
 
     auto prog_handler = ProgHandler::try_new(exec_path.value());
+    if (using_embedded_server) {
+        embedded_server_handler.delete_file();
+    }
     if (!prog_handler) {
         std::cout << std::format("Error: failed to start the background server. Error is: {}\n", prog_handler.error());
         return 5;
