@@ -18,7 +18,7 @@ add_custom_command(
 )
 
 add_custom_target(local_jira_server_header
-  COMMAND cp --  "${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira" "local_jira_server"
+  COMMAND ln -s -f "${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira" -T "local_jira_server"
   COMMAND xxd -include "./local_jira_server" "./local_jira_server_bin.h"
   DEPENDS ${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira
   VERBATIM
