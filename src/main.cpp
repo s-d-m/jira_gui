@@ -43,12 +43,14 @@ int main(int argc, char *argv[])
     MainWindow w (prog_handler_v);
 
     w.show();
-    auto server_reader_thread = prog_handler_v.start_background_message_listener([&](std::string msg){
+    auto server_reader_thread = prog_handler_v.start_background_message_listener(
+        [&](std::string msg){
             QMetaObject::invokeMethod(&w, &MainWindow::do_on_server_reply, std::move(msg));
         },
         [&](std::string msg) {
             QMetaObject::invokeMethod(&w, &MainWindow::do_on_server_error, std::move(msg));
-        });
+        }
+    );
 
     if (!server_reader_thread) {
         std::cout << "Failed to start a background thread to get messages from the server\n";
