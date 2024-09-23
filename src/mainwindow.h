@@ -23,7 +23,7 @@ public:
     ~MainWindow() override = default;
 
 private slots:
-    auto jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value) -> void;
+    auto jira_issue_activated(QListWidgetItem* selected) -> void;
     auto download_file_activated(QListWidgetItem* selected) -> void;
     auto do_on_synchronise_projects_clicked() -> void;
     auto do_on_full_projects_reset_clicked() -> void;
