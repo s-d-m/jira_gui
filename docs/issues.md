@@ -103,15 +103,3 @@ up through some signalling mechanism (e.g. a condition variable).
 
 ### Difficulty
 Hard
-
-
-## More legible fonts
-### Problem
-The UI uses the fonts available on the system. Those are not necessarily the 
-easiest one to read.
-
-### Solution
-Embed a font designed for legibility in the binary and use that one.
-
-### Difficulty
-Medium-Hard
