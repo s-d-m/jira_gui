@@ -149,8 +149,27 @@ MainWindow::MainWindow(ProgHandler& server_handle, QWidget *parent)
     ui->properties_widget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     QObject::connect(ui->issues_list, SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)), this, SLOT(jira_issue_activated(QListWidgetItem*,QListWidgetItem*)));
     QObject::connect(ui->attachments_widget, SIGNAL(itemDoubleClicked(QListWidgetItem *)), this, SLOT(download_file_activated(QListWidgetItem *)));
+    QObject::connect(ui->synchroniseProjects, SIGNAL(clicked()), this, SLOT(do_on_synchronise_projects_clicked()));
+    QObject::connect(ui->fullResetProjects, SIGNAL(clicked()), this, SLOT(do_on_full_projects_reset_clicked()));
+
     start_issue_list_request();
     ui->main_view_widget->setCurrentIndex(0);
+}
+
+auto MainWindow::do_on_synchronise_projects_clicked() -> void {
+    this->synchronise_projects_request = std::string{"synchronise-projects-"} + std::to_string(nr_request++);
+    const auto request = this->synchronise_projects_request + " SYNCHRONISE_UPDATED\n";
+    ui->synchroniseProjects->setEnabled(false);
+    ui->synchroniseProjects->setText(QString("synchronising projects..."));
+    server_handler.send_to_child(request);
+}
+
+auto MainWindow::do_on_full_projects_reset_clicked() -> void {
+    this->full_reset_request = std::string{"synchronise-all-"} + std::to_string(nr_request++);
+    const auto request = this->full_reset_request + " SYNCHRONISE_ALL\n";
+    ui->fullResetProjects->setEnabled(false);
+    ui->fullResetProjects->setText(QString("full reset ongoing..."));
+    server_handler.send_to_child(request);
 }
 
 auto MainWindow::download_file_activated(QListWidgetItem* selected) -> void {
@@ -233,6 +252,25 @@ void MainWindow::jira_issue_activated(QListWidgetItem* selected, QListWidgetItem
     }
 }
 
+auto MainWindow::handle_synchronise_projects_reply(const std::string& s) -> void {
+    if (s == synchronise_projects_request + " FINISHED\n") {
+        ui->synchroniseProjects->setEnabled(true);
+        ui->synchroniseProjects->setText("synchronise projects");
+        synchronise_projects_request.clear();
+    } else if (s == synchronise_projects_request + " ACK\n") {
+        // nothing to do
+    }
+}
+
+auto MainWindow::handle_full_reset_reply(const std::string& s) -> void {
+    if (s == full_reset_request + " FINISHED\n") {
+        ui->fullResetProjects->setEnabled(true);
+        ui->fullResetProjects->setText("Full projects reset");
+        full_reset_request.clear();
+    } else if (s == full_reset_request + " ACK\n") {
+        // nothing to do
+    }
+}
 
 auto MainWindow::handle_issue_list_reply(const std::string& s) -> void {
     if (s == (issue_list_request + " FINISHED\n")) {
@@ -448,6 +486,10 @@ auto MainWindow::do_on_server_reply(std::string s) -> void {
         handle_ticket_properties_reply(s);
     } else if (s.starts_with(ticket_attachments_request + " ")) {
         handle_ticket_attachment_reply(s);
+    } else if (s.starts_with(synchronise_projects_request + " ")) {
+        handle_synchronise_projects_reply(s);
+    } else if (s.starts_with(full_reset_request + " ")) {
+        handle_full_reset_reply(s);
     } else if (auto it = find_elt_to_dl_for_msg(s);
                it != files_to_download.end()) {
         handle_download_msg_reply(s, it);

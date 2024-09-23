@@ -25,6 +25,8 @@ public:
 private slots:
     auto jira_issue_activated(QListWidgetItem* selected, QListWidgetItem* previous_value) -> void;
     auto download_file_activated(QListWidgetItem* selected) -> void;
+    auto do_on_synchronise_projects_clicked() -> void;
+    auto do_on_full_projects_reset_clicked() -> void;
 
 public slots:
     // don't call these on_* otherwise Qt tries to do some automatic
@@ -50,6 +52,8 @@ private:
     void start_ticket_view_request(const std::string& issue_name);
     void start_issue_list_request();
 
+    auto handle_synchronise_projects_reply(const std::string& s) -> void;
+    auto handle_full_reset_reply(const std::string& s) -> void;
     auto handle_issue_list_reply(const std::string& s) -> void;
     auto handle_ticket_view_reply(const std::string& s) -> void;
     auto handle_ticket_properties_reply(const std::string& s) -> void;
@@ -62,10 +66,13 @@ private:
 private:
     std::unique_ptr<Ui::MainWindow> ui;
     ProgHandler& server_handler;
+    // todo: really move the communication protocol out of the gui
     std::string issue_list_request = {};
     std::string ticket_view_request = {} ;
     std::string ticket_properties_request = {};
     std::string ticket_attachments_request = {};
+    std::string synchronise_projects_request = {};
+    std::string full_reset_request = {};
     size_t nr_attachment_for_ticket = 0;
     bool first_ticket_loaded = false;
     std::vector<fname_req> files_to_download = {};
