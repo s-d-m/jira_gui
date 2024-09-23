@@ -1,0 +1,3 @@
+[submodule "local_jira"]
+	path = local_jira
+	url = https://codeberg.org/s-d-m/local_jira

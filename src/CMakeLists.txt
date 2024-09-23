@@ -11,16 +11,16 @@ add_executable(jira_gui
 )
 
 add_custom_command(
-  OUTPUT ${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira
+  OUTPUT ${CMAKE_SOURCE_DIR}/local_jira/target/release/local_jira
   COMMAND bash -c "cargo build --release"
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../local_jira
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/local_jira
   VERBATIM
 )
 
 add_custom_target(local_jira_server_header
-  COMMAND ln -s -f "${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira" -T "local_jira_server"
+  COMMAND ln -s -f "${CMAKE_SOURCE_DIR}/local_jira/target/release/local_jira" -T "local_jira_server"
   COMMAND xxd -include "./local_jira_server" "./local_jira_server_bin.h"
-  DEPENDS ${CMAKE_SOURCE_DIR}/../local_jira/target/release/local_jira
+  DEPENDS ${CMAKE_SOURCE_DIR}/local_jira/target/release/local_jira
   VERBATIM
 )
 
