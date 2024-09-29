@@ -98,7 +98,7 @@ namespace {
                 } else if (is_would_block(cur_errno)) {
                     // nothing special to do, just try again. Sleep a bit to avoid a busy loop
                     const auto max_remaining_time = max_wait - waited_time;
-                    const auto time_to_wait = std::min(max_remaining_time, waited_time);
+                    const auto time_to_wait = std::min(max_remaining_time, max_duration_between_wait);
                     std::this_thread::sleep_for(time_to_wait);
                     waited_time += time_to_wait;
                 } else {
@@ -108,7 +108,7 @@ namespace {
             } else if (nr_written_bytes == 0) {
                 // 0 bytes written and no error? something weird. Let's wait a bit to avoid a potential busy loop
                 const auto max_remaining_time = max_wait - waited_time;
-                const auto time_to_wait = std::min(max_remaining_time, waited_time);
+                const auto time_to_wait = std::min(max_remaining_time, max_duration_between_wait);
                 std::this_thread::sleep_for(time_to_wait);
                 waited_time += time_to_wait;
             } else {
