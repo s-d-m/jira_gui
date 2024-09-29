@@ -15,6 +15,7 @@ add_custom_command(
   COMMAND bash -c "cargo build --release"
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/local_jira
   VERBATIM
+  USES_TERMINAL
 )
 
 add_custom_target(local_jira_server_header
